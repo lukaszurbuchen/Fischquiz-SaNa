@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SaNa Fischquiz</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐟</text></svg>">
+<style>
+:root{
+  --bg1:#0b4f6c; --bg2:#01baef; --card:#ffffff; --ink:#12263a; --muted:#5b7083;
+  --ok:#22a06b; --okbg:#e3f7ec; --bad:#d64545; --badbg:#fde8e8; --accent:#ff9f1c;
+  --opt:#f2f7fb; --optb:#d5e3ee; --shadow:0 10px 30px rgba(0,0,0,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg1:#031926; --bg2:#0b4f6c; --card:#10283a; --ink:#e8f1f8; --muted:#9db3c4;
+    --okbg:#123d2a; --badbg:#432020; --opt:#163448; --optb:#24506b;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);
+  background:linear-gradient(170deg,var(--bg1),var(--bg2));background-attachment:fixed;padding:16px;}
+.wrap{max-width:680px;margin:0 auto}
+header{color:#fff;text-align:center;margin:8px 0 18px}
+header h1{margin:0;font-size:1.8rem;letter-spacing:.5px}
+header p{margin:4px 0 0;opacity:.85}
+.card{background:var(--card);border-radius:20px;padding:22px;box-shadow:var(--shadow)}
+button{font:inherit;cursor:pointer;border:none;border-radius:14px}
+.big{display:block;width:100%;padding:16px;margin:10px 0;font-size:1.1rem;font-weight:700;color:#fff;background:var(--accent);box-shadow:0 4px 0 #c97600;transition:transform .08s}
+.big:active{transform:translateY(3px);box-shadow:0 1px 0 #c97600}
+.big.blue{background:#1b8bd1;box-shadow:0 4px 0 #11608f}
+.big.gray{background:#6b8295;box-shadow:0 4px 0 #485a69}
+.big:disabled{opacity:.4;cursor:default}
+input[type=text]{width:100%;padding:14px;font-size:1.1rem;border-radius:12px;border:2px solid var(--optb);background:var(--opt);color:var(--ink)}
+label{font-weight:600;display:block;margin-bottom:6px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.chip{display:inline-block;padding:6px 12px;border-radius:999px;font-size:.85rem;font-weight:700;background:var(--opt);border:1px solid var(--optb)}
+.stats{display:flex;gap:10px;font-weight:700}
+.progress{height:12px;background:var(--opt);border-radius:999px;overflow:hidden;margin:6px 0 16px}
+.progress div{height:100%;background:linear-gradient(90deg,#ffd166,var(--accent));transition:width .3s}
+.qnum{color:var(--muted);font-size:.9rem;margin-bottom:6px}
+.question{font-size:1.25rem;font-weight:700;line-height:1.35;margin:0 0 16px}
+.opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:14px;margin:10px 0;background:var(--opt);border:2px solid var(--optb);color:var(--ink);font-size:1.02rem;line-height:1.35}
+.opt .key{flex:0 0 28px;height:28px;border-radius:50%;background:var(--card);border:2px solid var(--optb);display:grid;place-items:center;font-weight:800;font-size:.9rem}
+.opt:hover:not(:disabled){border-color:#1b8bd1}
+.opt.ok{background:var(--okbg);border-color:var(--ok)}
+.opt.ok .key{background:var(--ok);border-color:var(--ok);color:#fff}
+.opt.bad{background:var(--badbg);border-color:var(--bad)}
+.opt.bad .key{background:var(--bad);border-color:var(--bad);color:#fff}
+.opt:disabled{cursor:default}
+.feedback{margin-top:12px;padding:14px;border-radius:14px;font-weight:600;display:none}
+.feedback.ok{display:block;background:var(--okbg);border-left:6px solid var(--ok)}
+.feedback.bad{display:block;background:var(--badbg);border-left:6px solid var(--bad)}
+.feedback small{display:block;font-weight:400;margin-top:6px;color:var(--ink)}
+.result-big{text-align:center;font-size:3.2rem;margin:4px 0}
+.rank{text-align:center;font-size:1.4rem;font-weight:800;margin:0}
+.score{text-align:center;color:var(--muted);margin:6px 0 16px}
+table{width:100%;border-collapse:collapse;margin:8px 0 16px}
+td{padding:8px 4px;border-bottom:1px solid var(--optb)}
+td:last-child{text-align:right;font-weight:700}
+.bar{height:8px;background:var(--opt);border-radius:999px;overflow:hidden;margin-top:4px}
+.bar div{height:100%;background:var(--ok)}
+.wrong{padding:12px;border-radius:12px;background:var(--opt);margin:8px 0;font-size:.95rem}
+.wrong b{display:block;margin-bottom:4px}
+.wrong .r{color:var(--ok);font-weight:700}
+.wrong .y{color:var(--bad);text-decoration:line-through}
+h2{margin:18px 0 8px;font-size:1.15rem}
+.hs li{margin:4px 0}
+.muted{color:var(--muted);font-size:.9rem}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.splash{position:fixed;pointer-events:none;font-size:2rem;animation:fly 1.4s ease-out forwards;z-index:9}
+@keyframes fly{from{opacity:1;transform:translate(0,0) scale(.6)}to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.4) rotate(var(--r))}}
+.pic{margin:0 0 14px;text-align:center}
+.pic img{max-width:100%;max-height:240px;border-radius:12px;background:#fff;display:block;margin:0 auto}
+.pic .src{display:block;font-size:.72rem;color:var(--muted);margin-top:6px;text-decoration:none}
+.pic.loading{height:170px;border-radius:12px;background:var(--opt);animation:pulse .9s infinite alternate}
+@keyframes pulse{from{opacity:.5}to{opacity:1}}
+.hidden{display:none}
+footer{color:#fff;opacity:.7;text-align:center;font-size:.8rem;margin:18px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎣 SaNa Fischquiz</h1>
+    <p>Fit für den Sachkundenachweis Fischerei</p>
+  </header>
+
+  <!-- START -->
+  <section id="start" class="card">
+    <label for="name">Wer spielt?</label>
+    <input id="name" type="text" placeholder="Dein Name" maxlength="20" autocomplete="off">
+    <button class="big" data-n="50">🏆 Prüfung – 50 Fragen</button>
+    <button class="big blue" data-n="20">⚡ Schnellrunde – 20 Fragen</button>
+    <button class="big gray" id="retryBtn">🔁 Meine Fehler üben</button>
+    <p class="muted" id="poolInfo"></p>
+    <h2>🥇 Bestenliste</h2>
+    <ol class="hs" id="hs"></ol>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="card hidden">
+    <div class="topbar">
+      <span class="chip" id="cat"></span>
+      <span class="stats"><span id="fish">🐟 0</span><span id="streak"></span></span>
+    </div>
+    <div class="progress"><div id="prog"></div></div>
+    <div class="qnum" id="qnum"></div>
+    <div class="pic hidden" id="pic"></div>
+    <p class="question" id="q"></p>
+    <div id="opts"></div>
+    <div class="feedback" id="fb"></div>
+    <button class="big hidden" id="next">Weiter ➜</button>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" class="card hidden">
+    <div class="result-big" id="rEmoji"></div>
+    <p class="rank" id="rRank"></p>
+    <p class="score" id="rScore"></p>
+    <h2>Nach Themen</h2>
+    <table id="rCats"></table>
+    <div id="rWrongWrap">
+      <h2>Das üben wir nochmal</h2>
+      <div id="rWrong"></div>
+    </div>
+    <div class="row">
+      <button class="big" id="again">Nochmal 🎣</button>
+      <button class="big gray" id="home">Start</button>
+    </div>
+  </section>
+
+  <footer>Alle 150 Fragen aus dem SaNa-Prüfungskatalog · Tasten 1/2/3 und Enter funktionieren auch</footer>
+</div>
+
+<script>
+const CATS = {
+  A:{name:"Fischkunde", icon:"🐟"},
+  B:{name:"Gewässer & Ökologie", icon:"🌊"},
+  C:{name:"Methoden & Geräte", icon:"🎣"},
+  D:{name:"Gesetz & Tierschutz", icon:"⚖️"},
+  E:{name:"Fisch als Nahrung", icon:"🍽️"}
+};
+// [Kategorie, Nr, Frage, [richtig, falsch, falsch], Tipp]
+const Q = [
+["A",1,"Bestimme den Fisch: barschartig und langgestreckt, zwei Rückenflossen, grosse Fangzähne und glasige Augen.",["Zander","Egli","Schleie"]],
+["A",2,"Bestimme den Fisch: hochrückig, goldbraun, lange Rückenflosse und vier Barteln am Maul.",["Karpfen","Schleie","Alet"]],
+["A",3,"Bestimme den Fisch: langgestreckt, entenschnabelförmiges Maul, Rücken- und Afterflosse weit hinten.",["Hecht","Egli","Zander"]],
+["A",4,"Bestimme den Fisch: walzenförmiger Weissfisch, breiter Kopf, grosse dunkel umrandete Schuppen, rote nach aussen gewölbte Afterflosse.",["Alet","Nase","Barbe"]],
+["A",5,"Bestimme den Fisch: schlanker Weissfisch, unterständiges gerades Maul mit Hornkante, orangerote Flossen.",["Nase","Karpfen","Alet"]],
+["A",6,"Bestimme den Fisch: olivgrün und schleimig, winzige Schuppen, rötliche Augen, abgerundete Flossen.",["Schleie","Rotauge","Brachsmen"]],
+["A",7,"Bestimme den Fisch: silbrig, kleiner Kopf, Fettflosse, tief gegabelte Schwanzflosse, lebt im Freiwasser der Seen.",["Felchen","Saibling","Alet"],"Saiblinge haben helle Punkte und einen roten Bauch."],
+["A",8,"Bestimme den Fisch: langer, marmorierter Grundfisch mit einem Bartfaden am Kinn und zwei Rückenflossen.",["Trüsche","Wels","Aal"],"Die Trüsche ist der einzige Dorschverwandte im Süsswasser."],
+["A",9,"Bestimme den Fisch: sehr hochrückig und flach, bronzefarben, lange Afterflosse, dunkle Flossen.",["Brachsmen","Rotauge","Rotfeder"]],
+["A",10,"Bestimme den Fisch: silbriger Weissfisch mit roter Iris, Rückenflosse beginnt direkt über den Bauchflossen.",["Rotauge","Rotfeder","Brachsmen"],"Rotfeder: Rückenflosse beginnt deutlich HINTER den Bauchflossen."],
+["A",11,"Bestimme den Fisch: langgestreckter Grundfisch mit unterständigem Maul und vier Bartfäden.",["Barbe","Alet","Felche"]],
+["A",12,"Bestimme den Fisch: leuchtend rote Flossen, oberständiges Maul, Rückenflosse beginnt hinter den Bauchflossen.",["Rotfeder","Rotauge","Alet"]],
+["A",13,"Bestimme den Fisch: grünlich mit dunklen Querbinden, stachelige Rückenflosse mit schwarzem Fleck, rote Bauchflossen.",["Egli","Zander","Hecht"]],
+["A",14,"Bestimme den Fisch: Forelle mit rosa schillerndem Längsband und schwarzen Punkten bis auf die Schwanzflosse.",["Regenbogenforelle","Seeforelle","Seesaibling"]],
+["A",15,"Bestimme den Fisch: Salmonide mit fahnenartig grosser, bunter Rückenflosse und kleinem Maul.",["Äsche","Seeforelle","Barbe"]],
+["A",16,"Bestimme den Fisch: Salmonide mit schwarzen und roten (hell umrandeten) Punkten und gelblichem Bauch.",["Bachforelle","Seesaibling","Felche"]],
+["A",17,"Bestimme den Fisch: grosse, silbrige Forelle mit x-förmigen schwarzen Flecken, lebt im See und laicht in Flüssen.",["Seeforelle","Äsche","Felche"]],
+["A",18,"Welche Fischarten sind typische Kieslaicher?",["z.B. Forelle, Äsche, Barbe, Nase","z.B. Hecht, Egli, Rotfeder","z.B. Felchen, Balchen, Schleien"]],
+["A",19,"Welche Ansprüche stellen Forellen an ihre Laichplätze?",["Lockerer, gut durchströmter Kies","Dichter Pflanzenbewuchs","Mindestens 80 cm Wassertiefe"]],
+["A",20,"Warum sind gewisse Fischarten geschützt?",["Weil es Arten gibt, die stark gefährdet oder vom Aussterben bedroht sind","Weil sie aus touristischen Gründen interessant sind","Weil man sie als Futter für Raubfische fördern muss"]],
+["A",21,"Gibt es gesamtschweizerisch geschützte Arten?",["Ja, in der Verordnung zum Bundesgesetz über die Fischerei","Nein, das regeln nur die Kantone","Ja, aber die geschützten Arten sind alle schon ausgestorben"]],
+["A",22,"Was tun, wenn eine geschützte Art am Haken hängt?",["Möglichst im Wasser vom Haken lösen und vorsichtig zurücksetzen","Aus dem Wasser nehmen, fotografieren und genau vermessen","Lebend mitnehmen und dem Fischereiaufseher zeigen"]],
+["A",23,"Warum sind nicht einheimische Krebsarten eine Gefahr für die einheimischen?",["Weil sie die Krebspest verbreiten können","Weil sie schneller wachsen","Weil sie sich vor allem von Fischlaich ernähren"]],
+["A",24,"Welche Art gehört NICHT zu den drei einheimischen Krebsen der Schweiz?",["Kamberkrebs","Dohlenkrebs","Steinkrebs"],"Einheimisch sind Edelkrebs, Dohlenkrebs und Steinkrebs."],
+["A",25,"Zu welcher Familie gehören die meisten unserer einheimischen kleinwüchsigen Fischarten?",["Karpfenartige","Barschartige","Forellenartige"]],
+["A",26,"Was versteht man unter dem Begriff Biodiversität?",["Die gesamte biologische Vielfalt, von der genetischen Vielfalt innerhalb von Arten bis zur Ökosystem-Vielfalt","Fische schonend zurücksetzen","Eine Fischkrankheit"]],
+["A",27,"Welche Fischart ist in der Schweiz für ihre aussergewöhnliche Artenvielfalt bekannt?",["Die Felchen","Die Hechte","Die Barsche"],"Fast jeder grössere See hat eigene Felchenarten."],
+["A",28,"In welchem Kanton sind sehr viele Fischarten heimisch, die in der übrigen Schweiz nicht vorkommen?",["Kanton Tessin","Kanton Luzern","Kanton Neuenburg"],"Das Tessin entwässert Richtung Po – darum eine eigene Fischwelt."],
+["A",29,"Wie passen sich Fisch-Populationen an ihren Lebensraum an?",["Durch natürliche Auslese und Evolution","Durch schnelles Wachstum","Durch reduzierte Aktivität"]],
+["A",30,"Warum ist genetische Vielfalt wichtig?",["Sie erhöht die Anpassungsfähigkeit einer Fischart gegenüber Umweltveränderungen","Sie ist bei Fischen unwichtig","Damit das Fischfleisch nach dem Zubereiten besser schmeckt"]],
+["A",31,"Wie kann die genetische Vielfalt bei Fischen am besten erhalten werden?",["Indem wir die natürliche Fortpflanzung fördern","Durch Besatz mit möglichst grossen Fischen","Mit gezielter Befischung von nicht angepassten Fischen"]],
+["A",32,"Welche Fische laichen im Frühling?",["Äsche","Seesaiblinge","Forelle"],"Forelle und Seesaibling laichen im Herbst/Winter."],
+["A",33,"Mit welcher Flosse kann eine rasche Vorwärtsbewegung ausgeführt werden?",["Schwanzflosse","Rückenflosse","Afterflosse"]],
+["A",34,"Wozu dienen die Schuppen der Fische?",["Sie bieten mechanischen Schutz","Sie ermöglichen schnelles Schwimmen unter Wasser","Sie bilden eine Kalkreserve für den Fisch"]],
+["A",35,"Wozu dienen die Kiemen der Fische?",["Sie sind das Atmungsorgan der einheimischen Fische","Sie unterstützen die Nase beim Riechen","Sie sind für den Temperaturausgleich verantwortlich"]],
+["A",36,"Welches Organ hilft dem Fisch beim Einhalten seiner Schwimmhöhe?",["Schwimmblase","Kiemen","Rückenflosse"]],
+["A",37,"Wozu dient das Seitenlinienorgan?",["Der Erfühlung der Umgebung","Es dient dem Hören","Der Unterscheidung zwischen den Geschlechtern"]],
+["A",38,"Wie ist die Körperoberfläche des Aals beschaffen?",["Ganz kleine Schuppen","Schuppenlos","Grosse Schuppen"],"Fies! Der Aal wirkt schuppenlos, hat aber winzige Schuppen tief in der Haut."],
+["A",39,"Welcher Salmonide hat eine ausgeprägte, grosse Rückenflosse?",["Äsche","Regenbogenforelle","Seesaibling"],"Die Äsche heisst auch «Fahnenträger»."],
+["A",40,"Welcher Fisch hat weder Schwimmblase noch Schwimmblasengang?",["Groppe","Elritze","Gründling"],"Die Groppe lebt am Grund und braucht keine Schwimmblase."],
+["A",41,"Welche dieser Fischarten hat ein unterständiges Maul?",["Nase","Laube","Forelle"],"Der Name sagt's: Die Nase hat eine vorstehende «Nase» über dem Maul."],
+["A",42,"Wie ist die Mundpartie des Egli ausgestattet?",["Viele, kleine Zähnchen","Zahnlos","Wenige, grosse Zähne"],"Sogenannte Bürstenzähne."],
+["A",43,"Was passiert, wenn ein Fisch sehr schnell aus grosser Tiefe heraufgeholt wird?",["Die Luft in seiner Schwimmblase dehnt sich aus","Die Luft in seiner Schwimmblase wird zusammengedrückt","Das Herz hört auf zu schlagen und er muss nicht mehr getötet werden"]],
+["A",44,"Vertreter welcher Fischgruppe haben eine Fettflosse?",["Forellenartige","Barschartige","Karpfenartige"]],
+["A",45,"Wie nehmen Fische mit unterständigem Mund ihre Nahrung typischerweise auf?",["Vom Gewässergrund","Von der Wasseroberfläche","Aus dem freien Wasser"]],
+["A",46,"Welchen Vorteil haben Fische mit pfeilförmiger Körperform wie der Hecht?",["Sie können auf kurzer Strecke eine hohe Geschwindigkeit erreichen","Sie sehen gefährlicher aus und haben deshalb weniger Feinde","Sie können sich besser im Schilf verstecken"]],
+["A",47,"Können Hautschäden bei Fischen zum Tod führen?",["Ja, bei starken Beeinträchtigungen","Nein, nur zu Pilzerkrankungen","Nein, aber zu Infektionen"]],
+["A",48,"Wo sind krankheitsverdächtige Fische zu melden?",["Bei der Fischereiaufsicht","Beim nächsten Laboratorium","Beim Bundesamt für Veterinärwesen"]],
+["A",49,"Welche Gewässer sind von der proliferativen Nierenkrankheit (PKD) besonders häufig betroffen?",["Wärmere Fliessgewässer des Mittellandes","Seen","Kühle Bergbäche"]],
+["A",50,"Warum darf ein lebender Fisch nur mit nassen Händen angefasst werden?",["Um die Schleimhaut nicht zu verletzen","So ist der Temperaturunterschied nicht zu gross","Damit wir ihn besser zurücksetzen können"]],
+["A",51,"Was können Angler tun, um die Weiterverbreitung von Krankheiten (z. B. Fischschimmel) einzudämmen?",["Gerätschaften sorgfältig reinigen und vollständig trocknen lassen","Nichts, Fischkrankheiten sind Sache des Bundesamts für Veterinärwesen","In betroffenen Gewässern auch geschützte Fische entnehmen"]],
+["A",52,"Welche Faktoren führen dazu, dass Fischkrankheiten schneller ausbrechen?",["Stressfaktoren wie hohe Wassertemperatur, Verunreinigungen, Schwall und Sunk","Fischereiutensilien, die nicht mit Desinfektionslösung gespült wurden","Mangel an Antibiotika"]],
+["A",53,"Wie können Krankheitserreger an Geräten und Ausrüstung abgetötet werden?",["Hitzebehandlung, Austrocknung oder Desinfektion","Lauwarmes Wasser","Das geht nicht"]],
+
+["B",54,"Welche Region: Quellgewässer mit kühlem, sauerstoffreichem Wasser?",["Forellenregion","Barbenregion","Äschenregion"],"Von oben nach unten: Forelle – Äsche – Barbe – Brachse."],
+["B",55,"Welche Eigenschaften ändern sich, wenn aus dem Bach ein Strom wird?",["Gefälle und Fliessgeschwindigkeit nehmen ab","Der Untergrund wird immer grobkörniger","Maximaltemperatur und Temperaturschwankungen werden kleiner"]],
+["B",56,"Warum sind Flachwasserzonen wichtig?",["Als Lebensraum für Jungfische","Der Fischer kann besser waten","Damit das Wasser im Sommer schneller warm wird"]],
+["B",57,"Was fördert eine vielfältige Fischartenvielfalt?",["Unterschiedliche und vielfältige Lebensräume","Intensive Landwirtschaft in Gewässernähe, damit viele Nährstoffe ins Wasser kommen","Harte Uferverbauungen, damit keine Pestizide ins Gewässer kommen"]],
+["B",58,"Welcher Zusammenhang besteht zwischen Sauerstoffgehalt und Wassertemperatur?",["Je wärmer das Wasser, umso weniger Sauerstoff ist darin gelöst","Es ist immer gleich viel Sauerstoff gelöst","Je wärmer das Wasser, umso mehr Sauerstoff ist darin gelöst"]],
+["B",59,"Welcher Zusammenhang besteht in der Regel zwischen Nährstoff- und Sauerstoffkonzentration?",["Nährstoffarme (oligotrophe) Seen haben mehr Sauerstoff als nährstoffreiche (eutrophe)","Nährstoffarme Seen haben weniger Sauerstoff als nährstoffreiche","Es gibt keinen Zusammenhang"]],
+["B",60,"Welche Organismen der Nahrungskette gehören zu den Produzenten?",["Wasserpflanzen","Schnecken","Fische"],"Produzenten machen aus Licht Nahrung – also Pflanzen und Algen."],
+["B",61,"Fressen Fische in allen Jahreszeiten ungefähr gleich viel?",["Nein, im Winter weniger – sie sind in kaltem Wasser weniger aktiv","Nein, im Winter mehr – sie brauchen Energie, um warm zu bleiben","Ja"]],
+["B",62,"In welcher Grösse kommen Fische in einem natürlichen Gewässer am häufigsten vor?",["Am meisten kleine Jungfische","In allen Grössenklassen gleich viele","Am meisten ausgewachsene, grosse Fische"]],
+["B",63,"Wer ist in der Regel für eine angemessene Bewirtschaftung verantwortlich?",["Die kantonalen Fischereifachstellen","Das Bundesamt für Veterinärwesen","Das Bundesamt für Umwelt"]],
+["B",64,"Welche Grösse von Besatztieren verspricht in der Regel den besten Erfolg?",["Ein den Verhältnissen angepasster Anteil Brütlinge und Sömmerlinge","Wenige, teurere, aber grosse Fische","Grosse Mengen billige Brütlinge und Sömmerlinge"]],
+["B",65,"Was bedeutet der Ausdruck „Fische laichen“?",["Die Fische legen ihre Eier ab","Die Fische fressen aktiv","Die Fische sterben"]],
+["B",66,"Wie sollten Elterntiere für die Aufzucht von Besatzfischen ausgewählt werden?",["Möglichst zahlreich und aus dem Gewässer, wo die Besatzfische eingesetzt werden","Möglichst wenige, dafür sehr grosse Fische","Spielt keine Rolle"]],
+["B",67,"Woher stammt das „optimale“ Elterntier zur Aufzucht von Besatzfischen?",["Aus dem Gewässer, in das die Besatzfische eingesetzt werden","Zwecks „Blutauffrischung“ aus fremden Gewässern","Aus der günstigsten Fischzucht"]],
+["B",68,"Was sollen Schonmassnahmen vor allem bezwecken?",["Schutz der Jungfische","Förderung sportlicher Fangmethoden","Schutz kranker Fische"]],
+["B",69,"Was geschieht in einem Schongebiet mit dem Fischbestand?",["Es stellt sich ein Gleichgewicht ein","Die grossen Fische nehmen überhand","Der Fischbestand steigt ständig an"]],
+["B",70,"Was wird mit einer Fangzahlbeschränkung hauptsächlich erreicht?",["Eine gerechtere Verteilung der Fänge","Eine Erhöhung des Fischbestands","Ein wirksamer Schutz der Laichtiere"],"Fangzahl = Verteilung unter den Fischern. Laichtiere schützen Mindestmass und Schonzeit."],
+["B",71,"Worauf sind die Schonzeiten ausgerichtet?",["Auf die Laichzeiten der Fische","Auf die Jahreszeiten","Auf die Bedürfnisse der Angler"]],
+["B",72,"Wozu gibt es Fangmindestmasse?",["Damit jeder Fisch mindestens einmal laichen kann","Weil kleine Fische schwierig zu filetieren sind","Um den Fangertrag besser zu verteilen"]],
+["B",73,"Findet man bei chronischen Gewässerschädigungen immer tote Fische?",["Nicht unbedingt","Ja, das sind untrügliche Anzeichen","Nein, das ist nie der Fall"]],
+["B",74,"Welche Massnahmen sind bei Fischsterben zu treffen?",["Alarm, Gifteinfluss ableiten, Frischwasserzufuhr","Alarm, Beweissicherung","Stauen, Abfischen, Beweissicherung"]],
+["B",75,"Wen alarmiert man bei Fischsterben und Gewässerschädigungen?",["Fischereiaufsicht und Polizei","Pächter bzw. Vereinspräsident","Bundesamt für Umwelt"]],
+["B",76,"Welcher Begriff bezeichnet eine Gewässeraufwertung?",["Revitalisierung","Uferverbauung","Sohlenverbauung"]],
+["B",77,"Wie können vielfältige Fischbestände am besten unterstützt werden?",["Mit Revitalisierungen","Mit viel Besatz","Indem gebietsfremde Arten eingeführt werden"]],
+["B",78,"Welches Problem wird durch die Wasserkraftnutzung mitverursacht?",["Zu wenig lockeres Geschiebe, weil es in Stauhaltungen liegen bleibt","Keines","Zu viel Geschiebe"]],
+["B",79,"Weshalb wurden in der Schweiz so viele Fliessgewässer kanalisiert und begradigt?",["Für Landgewinn für Landwirtschaft, Industrie und Siedlungen","Um bessere Lebensbedingungen für Fische zu schaffen","In der Schweiz gibt es fast keine begradigten Gewässer"]],
+
+["C",80,"Welcher Knoten verbindet zwei Schnüre?",["Chirurgen-Knoten","Uni-Knoten","Clinch-Knoten"]],
+["C",81,"Welche Funktion erfüllt der Zapfen?",["Bissanzeiger","Standortbezeichnung gegenüber anderen Fischern","Lockmittel für Fische"]],
+["C",82,"Welche Fischarten beangelt man vorwiegend beim Grundfischen?",["Karpfen, Schleien, Weissfische","Köderfische","Raubfische"]],
+["C",83,"Was dient normalerweise zur Beschwerung beim Grundfischen?",["Ein durchbohrtes Stück Blei (Laufblei)","Ein Laufzapfen","Ein rundes Klemmblei"]],
+["C",84,"Wie wird ein Spinnköder angeboten?",["Man lässt ihn im Wasser spielen","Man setzt ihn auf den Grund","Man kombiniert ihn mit einem Laufzapfen"]],
+["C",85,"Für welche Fischarten wird die Schleppfischerei angewendet?",["Raubfische","Weissfische","Karpfenartige"]],
+["C",86,"Welchen Fischarten wird vor allem mit der Hegene nachgestellt?",["Felchen und Egli","Hechte und Forellen","Karpfen und Schleien"]],
+["C",87,"Wann müssen Fischerboote mit einem weissen Ball gekennzeichnet werden?",["Beim Schleppen","Beim Spinnfischen","Beim Hegenenfischen"]],
+["C",88,"Was ist die Hauptnahrung von Weissfischen?",["Kleinlebewesen, Wasserpflanzen, Algen","Kleine Fische","Teigwaren, Boilies u.a."]],
+["C",89,"Warum sollen Kunstköder grundsätzlich bevorzugt werden?",["Sie werden weniger tief geschluckt und vermeiden Verletzungen","Sie sind preisgünstiger","Sie sind fängiger"]],
+["C",90,"Was fressen Raubfische mit Vorliebe?",["Kleine Fische","Algen","Gummiköder"]],
+["C",91,"Sammelbegriff für Löffel, Spinner, Wobbler, Twister?",["Spinnköder","Metallköder","Hartköder"]],
+["C",92,"Mit welchem Köder wird auf der Wasseroberfläche gefischt?",["Trockenfliege","Nymphe","Streamer"]],
+["C",93,"Was versteht man unter einem Streamer?",["Imitation eines Fischchens","Imitation eines Insekts","Imitation einer Nymphe"]],
+["C",94,"Was ist eine Nymphe?",["Eine Insektenlarve","Ein kleines Fischchen","Ein Wasserwurm"]],
+["C",95,"Wie werden die Fischereiutensilien ausgewählt?",["Sie werden dem Gewässertyp und der Fischart angepasst","Man kann überall mit den gleichen Geräten fischen","Sie müssen neu gekauft sein"]],
+["C",96,"Warum sollte man nicht allzu dünne Schnüre verwenden?",["Sie erhöhen das Verlustrisiko beim Drill","Sie sind teurer als dickere","Man kann damit keine Knoten machen"]],
+["C",97,"Kommt es darauf an, welche Knoten gemacht werden?",["Ja, gute Knoten sind fester und lösen sich nicht von selbst","Nein, alle Knoten sind gleich stark","Nein, wenn man jeden Knoten doppelt macht"]],
+["C",98,"Was gehört neben Rute und Rolle zur Ausrüstung?",["Feumer, Zange/Hakenlöser, scharfes Messer/Schere, Massband, Fischtöter","Kein Fischbetäuber nötig, ein Stein reicht","Wer den Kiemengriff beherrscht, braucht keinen Feumer"]],
+["C",99,"Wer darf Widerhaken verwenden?",["Fischer mit SaNa-Ausweis, wo es die kantonalen Vorschriften ausdrücklich erlauben","Fischer über 40 Jahre","Fischer unter 20 Jahren"]],
+["C",100,"Mit welcher Rute wirft man beim Spinnfischen Löffel, Spinner und Wobbler aus?",["Wurfrute / Spinnrute","Teleskoprute","Fliegenrute"]],
+["C",101,"Wie heisst eine Rute, deren Teile ineinandergeschoben werden?",["Teleskoprute","Wurfrute / Spinnrute","Fliegenrute"]],
+["C",102,"Wie heisst die Rolle mit feststehender Spule und Schnurfangbügel?",["Stationärrolle / Wurfrolle","Laufrolle","Multirolle"],"Spule steht = Stationärrolle. Spule dreht = Lauf- oder Multirolle."],
+["C",103,"Welcher Kunstköder hat ein Metallblatt, das sich um eine Drahtachse dreht?",["Spinner","Löffel","Wobbler"]],
+["C",104,"Wie heisst der Gummiköder mit sichelförmigem, flatterndem Schwanz?",["Twister","Nymphe","Streamer"]],
+["C",105,"Wie heisst der fischförmige Hartköder mit Tauchschaufel?",["Wobbler","Spinner","Löffel"]],
+["C",106,"Was tue ich mit alter, unbrauchbarer Angelschnur am Wasser?",["Mitnehmen und sachgerecht entsorgen","Liegen lassen, sie löst sich an der Sonne auf","Im Bachbett vergraben"]],
+["C",107,"Warum sollte das Vorfach dünner sein als die Hauptschnur?",["Reisst es ab, gefährdet ein kurzes Vorfach den Fisch weniger","Der Fisch kann es weniger sehen","Unterschiedliche Durchmesser lassen sich besser knüpfen"]],
+
+["D",108,"Die Tierschutzbestimmungen gelten:",["Für alle Fischarten","Nur für geschützte Tierarten","Nur für Salmoniden"]],
+["D",109,"Wer besitzt grundsätzlich die Fischereihoheit in der Schweiz?",["Der Kanton","Die Bezirke","Der Bund"]],
+["D",110,"Wo sind die wichtigsten Belange der Fischerei in der Schweiz geregelt?",["Im Bundesgesetz über die Fischerei","Im Gewässerschutzgesetz","In der Bundesverfassung"]],
+["D",111,"Was zeichnet gute Fischer aus?",["Ein waidmännischer und tierschutzgerechter Umgang mit dem Fisch","Mit teurer Ausrüstung möglichst viel Beute machen","Sie setzen sich nicht für Hege und Pflege ein"]],
+["D",112,"Warum sind nicht einheimische (invasive) Fischarten nicht erwünscht?",["Sie können bei starker Vermehrung einheimische Arten gefährden","Sie sind schwieriger zu fangen","Sie sind nicht essbar"]],
+["D",113,"Warum eine der Zielfischart angepasste Angelschnur verwenden?",["Vernünftige Schnurstärken erlauben einen kurzen, schonenden Drill","Zu dicke Schnüre führen zu einem langen Drill","Gewisse Fische beissen nicht bei zu dünner Schnur"]],
+["D",114,"Du fängst in kurzer Zeit mehrere untermassige Fische. Was tust du?",["Einen neuen Platz suchen – ich befische offenbar ein Jungfischhabitat","Weiterfischen – wo es kleine hat, hat es auch grosse","Einen grösseren Köder verwenden"]],
+["D",115,"Nach welchen Kriterien wählt man einen geeigneten Angelplatz?",["Gute Anlandemöglichkeiten, kein bevorzugter Lebensraum von Jungfischen","Je weiter vom Wasser weg (z. B. Brücke), desto besser","Es gibt keine speziellen Kriterien"]],
+["D",116,"Warum muss beim Naturköder der Anbiss sofort mit einem Anschlag quittiert werden?",["Sonst verschluckt der Fisch den Köder und das Hakenlösen wird schwierig","Sonst spuckt er den Köder wieder aus","Spielt keine Rolle"]],
+["D",117,"Warum soll die Drilldauer kurz gehalten werden?",["Um den Fisch nicht in Erschöpfung mit Sauerstoffmangel zu bringen","Um die Reissfestigkeit der Schnur nicht zu gefährden","Um mehr Beute zu machen"]],
+["D",118,"Der Haken sitzt bei einem untermassigen Fisch tief oder wurde geschluckt. Was tun?",["Das Vorfach so kurz wie möglich abschneiden","Den Fisch in jedem Fall töten","Den Haken sorgfältig herausoperieren"]],
+["D",119,"Wodurch wird die empfindliche Fischhaut geschützt?",["Durch die Schuppen und die darüberliegende Schleimhaut","Nur durch die Schuppen","Die Fischhaut ist robust und braucht keinen Schutz"]],
+["D",120,"Wie nimmt man den Fisch zum Lösen des Hakens in die Hand?",["Bauch in die hohle, nasse Hand, Finger auf den Rücken","Rücken in die hohle, nasse Hand, Finger auf den Bauch","Spielt keine Rolle"]],
+["D",121,"Wie gehe ich vor, wenn ich den gefangenen Fisch behalten kann?",["Anlanden, betäuben, töten, vom Haken lösen","Anlanden, vom Haken lösen, töten","Anlanden, nochmals messen, dann töten"],"Merksatz: Erst betäuben – dann alles andere."],
+["D",122,"Wie wird ein Fisch richtig getötet?",["Mit Kopfschlag betäuben, dann entbluten oder sofort ausnehmen","Ans Ufer legen und Schlag auf den Kopf","Aus dem Wasser ziehen und sofort Kiemenschnitt"]],
+["D",123,"Reicht ein Schlag auf den Kopf, um einen Fisch korrekt zu töten?",["Nein, es braucht zusätzlich Entbluten oder sofortiges Ausnehmen","Ja, wenn man mindestens 3-mal schlägt","Meistens, sonst braucht es zusätzliche Schläge"],"Der Schlag betäubt nur – getötet wird erst durch Entbluten."],
+["D",124,"Wie werden lebende Fische kurzfristig richtig gehältert?",["In genügend grossen Behältern mit ausreichend Sauerstoff","In einem gut durchnässten Tuch","In einem mit Wasser gefüllten Plastiksack"]],
+["D",125,"Wie lange darf ein SaNa-Inhaber gefangene Fische hältern?",["Maximal bis zum Ende des Anglerausflugs","2 Stunden","3 Wochen"]],
+["D",126,"Wie halte ich meinen Fang frisch?",["Sofort ausnehmen, dann möglichst kühl lagern","Nur indem ich die Fische lebend hältere","In einen Plastiksack legen"]],
+["D",127,"Wie gehe ich beim Messen eines knapp massigen Fisches vor?",["Im Wasser messen und im Zweifel sofort zurücksetzen","Festhalten, bis er ruhig liegt – dann messen","Mehrmals messen für mehr Genauigkeit"]],
+["D",128,"Gelten Bundes- und kantonale Gesetze auch an privaten Gewässern?",["Ja, sie gelten auch für private Gewässer","Nein, dort gelten eigene Vorschriften","Nein, nur die Bundesgesetzgebung"]],
+["D",129,"Welche Fischart ist in der Schweiz das ganze Jahr geschützt?",["Nase","Regenbogenforelle","Äsche"],"Die Nase ist stark gefährdet. Die Äsche hat «nur» eine Schonzeit."],
+["D",130,"Warum sind Angeln mit Widerhaken grundsätzlich verboten?",["Beim Lösen besteht eine grosse Verletzungsgefahr für den Fisch","Auf Anraten der WHO","Weil sich der Fischer selbst verletzen kann"]],
+["D",131,"Wann dürfen massige Fische wieder zurückgesetzt werden?",["Aus ökologischen Gründen","Wenn sie mit dieser Absicht gefangen wurden","Wenn sie zu gross für die Pfanne sind"],"Fangen nur zum Zurücksetzen (Catch & Release) ist in der Schweiz nicht erlaubt."],
+["D",132,"Wie setzt man untermassige Fische zurück?",["Im Wasser Haken lösen, Fisch mit Kopf gegen die Strömung halten, bis er selbst wegschwimmt","Schnell Haken lösen und zurückwerfen","Gar nicht, es gibt ein Entnahmegebot"]],
+["D",133,"Warum darf nie Druck auf den Fischkörper ausgeübt werden?",["Um die empfindlichen inneren Organe nicht zu verletzen","Um die Galle nicht auszuquetschen","Um die Atmung nicht zu behindern"]],
+["D",134,"Muss man mit Fischen gleich sorgfältig umgehen wie mit anderen Wirbeltieren?",["Ja, es ist dieselbe Sorgfalt angebracht","Nein, es sind kaltblütige Tiere","Das liegt im Ermessen des Fischers"]],
+["D",135,"Wer darf Fische lebend hältern?",["Jeder SaNa-Inhaber, wo es die kantonalen Vorschriften gestatten","Jeder Patent-Inhaber","Jedermann, wo es kantonal gestattet ist"]],
+["D",136,"Darf man lebende Köderfische verwenden?",["Nur mit SaNa-Ausweis und wo es kantonal ausdrücklich erlaubt ist","Niemals","Immer, wenn man Raubfische beangelt"]],
+["D",137,"Welche Vorschrift musst du unbedingt kennen, bevor du an einem Gewässer fischst?",["Die gültigen kantonalen Vorschriften","Die Bundesverfassung","Das eidg. Fischereigesetz"]],
+["D",138,"Was ist zu tun, bevor man einen gehakten Fisch anfasst?",["Die Hand mit Wasser benetzen","Die Hand mit Sand rau machen","Die Hand mit Desinfektionsmittel einreiben"]],
+["D",139,"Was muss beim Fotografieren von lebenden Fischen beachtet werden?",["Im Wasser oder nur kurz herausheben, in normaler Schwimmlage","Fische dürfen nur tot fotografiert werden","Möglichst weit vom Wasser weg fotografieren"]],
+["D",140,"Warum müssen zurückgesetzte Fische gut behandelt werden?",["Fische sind empfindlich – nur korrekt behandelte überleben","Damit keine Busse riskiert wird","Damit die Fleischqualität nicht abnimmt"]],
+
+["E",141,"Warum soll der Fisch nach dem Töten so rasch wie möglich ausgenommen werden?",["Verwesende Innereien riechen und schaden der Fleischqualität","Damit er nicht mehr wegschwimmen kann","Weil man die Innereien nicht essen soll"]],
+["E",142,"Worauf muss beim Aufschneiden der Bauchdecke geachtet werden?",["Dass die Gallenblase nicht verletzt wird","Dass die Schleimhaut nicht verletzt wird","Dass die Innereien nicht herausfallen"]],
+["E",143,"Wie bewahre ich den ausgenommenen Fisch auf, während ich weiterfische?",["Im Tuch oder Fischkorb, im Schatten oder gekühlt","Im Plastiksack","Im Gras"]],
+["E",144,"Was geschieht mit tiefgefrorenem Fisch bei zu langer Lagerdauer?",["Das Fleisch trocknet langsam aus und wird ungeniessbar","Tiefgekühlt kann Fisch beliebig lange gelagert werden","Er verfärbt sich, bleibt aber geniessbar"]],
+["E",145,"Woran erkennt man, dass ein Fisch verdorben ist?",["Unangenehmer Geruch aus der Bauchhöhle, trübe/matte Augen","Die Schleimhaut ist ausgetrocknet","Nur an den Kiemen"]],
+["E",146,"Können alle Fischarten gleich lange im Tiefkühler gelagert werden?",["Nein, fettreiche Fische sind weniger lang lagerfähig","Fettreiche Fische halten länger","Alle gleich lang"]],
+["E",147,"Worauf muss beim Auftauen geachtet werden?",["Abgedeckt im Kühlschrank langsam auftauen, nicht im Tauwasser liegen lassen","Im lauwarmen Wasser auftauen","Abgedeckt in der Küche über Nacht auftauen"]],
+["E",148,"Worauf muss beim Einfrieren von Fisch geachtet werden?",["Dichter Beutel, luftdicht, rasch einfrieren, Datum notieren","In dünne Haushaltfolie wickeln","In Haushaltpapier wickeln"]],
+["E",149,"Weissfischfilets haben feine Gräten. Wie werden sie trotzdem geniessbar?",["Kleine Stücke schneiden und Gräten zupfen oder Hackfleisch machen","Nie Weissfische entnehmen","Man kann Weissfische nicht essen"]],
+["E",150,"Welche Merkmale zeigen, dass ein Speisefisch frisch ist?",["Frischer Geruch, glänzende feuchte Augen, rote Kiemen","Intensiver Geruch, trockene Haut, verfärbte Kiemen","Unangenehmer Geruch, verfärbte Haut, verklebte Kiemen"]]
+];
+
+// Bildfragen: Suchbegriffe für Wikimedia Commons (nur Public Domain / CC0 wird angezeigt)
+const IMG = {
+  1:["Sander lucioperca"],2:["Cyprinus carpio"],3:["Esox lucius"],4:["Squalius cephalus","Leuciscus cephalus"],
+  5:["Chondrostoma nasus"],6:["Tinca tinca"],7:["Coregonus lavaretus","Coregonus"],8:["Lota lota"],
+  9:["Abramis brama"],10:["Rutilus rutilus"],11:["Barbus barbus"],12:["Scardinius erythrophthalmus"],
+  13:["Perca fluviatilis"],14:["Oncorhynchus mykiss"],15:["Thymallus thymallus"],
+  16:["Salmo trutta fario","Salmo trutta"],17:["Salmo trutta lacustris","Salmo trutta"],
+  101:["telescopic fishing rod"],102:["spinning reel fishing"],103:["spinner fishing lure","Mepps spinner"],
+  104:["twister soft plastic grub lure","soft plastic fishing lure"],105:["crankbait fishing lure","wobbler fishing lure"]
+};
+const IMG_CACHE_KEY="sana_img_v1";
+const imgMem={}, imgStore=(()=>{try{return JSON.parse(localStorage.getItem(IMG_CACHE_KEY))||{}}catch(e){return {}}})();
+const okLicense = l => /public domain|cc0|^pd/i.test(l||"");
+const stripTags = s => {const d=document.createElement("div");d.innerHTML=s||"";return d.textContent.trim()};
+
+async function searchCommons(term, strict){
+  const filter = strict ? " haswbstatement:P6216=Q19652|P275=Q6938433" : "";
+  const p = new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrnamespace:"6",gsrlimit:"15",
+    gsrsearch: term+" filetype:bitmap"+filter, prop:"imageinfo", iiprop:"url|size|extmetadata", iiurlwidth:"640",
+    iiextmetadatafilter:"LicenseShortName|Artist"});
+  const r = await fetch("https://commons.wikimedia.org/w/api.php?"+p);
+  const j = await r.json();
+  const pages = Object.values((j.query||{}).pages||{}).sort((a,b)=>a.index-b.index);
+  for(const pg of pages){
+    const ii=(pg.imageinfo||[])[0]; if(!ii) continue;
+    const lic=stripTags(ii.extmetadata?.LicenseShortName?.value);
+    if(!okLicense(lic)) continue;
+    if(ii.width < 300 || ii.width < ii.height*1.15) continue; // quer, nicht zu klein
+    return {url:ii.thumburl||ii.url, page:ii.descriptionurl, lic, artist:stripTags(ii.extmetadata?.Artist?.value).slice(0,60)};
+  }
+  return null;
+}
+function findImage(n){
+  if(!IMG[n]) return Promise.resolve(null);
+  if(imgStore[n]) return Promise.resolve(imgStore[n]);
+  if(imgMem[n]) return imgMem[n];
+  imgMem[n]=(async()=>{
+    for(const t of IMG[n]) for(const strict of [true,false]){
+      try{const im=await searchCommons(t,strict); if(im){imgStore[n]=im;try{localStorage.setItem(IMG_CACHE_KEY,JSON.stringify(imgStore))}catch(e){};return im}}catch(e){}
+    }
+    return null;
+  })();
+  return imgMem[n];
+}
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+const shuffle = a => {a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+let round=[], idx=0, correct=0, streak=0, best=0, answered=false, wrongs=[], lastN=50, mode="normal", player="", picShown=false;
+
+function pickQuestions(n){
+  const byCat={};Q.forEach(q=>(byCat[q[0]]=byCat[q[0]]||[]).push(q));
+  const cats=Object.keys(byCat);
+  const min=Math.max(2,Math.floor(n/10)); // 50 → 5 pro Thema, 20 → 2
+  let chosen=[],rest=[];
+  cats.forEach(c=>{const s=shuffle(byCat[c]);chosen.push(...s.slice(0,min));rest.push(...s.slice(min))});
+  chosen.push(...shuffle(rest).slice(0,n-chosen.length));
+  return shuffle(chosen);
+}
+
+function show(id){["start","quiz","result"].forEach(s=>$(s).classList.toggle("hidden",s!==id));window.scrollTo(0,0)}
+
+function start(n,m="normal"){
+  player=$("name").value.trim()||"Anonym"; store.set("sana_name",player);
+  mode=m; lastN=n;
+  if(m==="retry"){
+    const w=store.get("sana_wrong_"+player,[]);
+    round=shuffle(Q.filter(q=>w.includes(q[1])));
+  } else round=pickQuestions(n);
+  if(!round.length)return;
+  idx=0;correct=0;streak=0;best=0;wrongs=[];
+  show("quiz");render();
+}
+
+function render(){
+  answered=false;
+  const q=round[idx],c=CATS[q[0]];
+  $("cat").textContent=c.icon+" "+c.name;
+  $("qnum").textContent="Frage "+(idx+1)+" von "+round.length+" · Nr. "+q[1];
+  $("prog").style.width=(idx/round.length*100)+"%";
+  $("fish").textContent="🐟 "+correct;
+  $("streak").textContent=streak>=3?"🔥 "+streak:"";
+  $("q").textContent=q[2];
+  picShown=false;
+  const pic=$("pic");
+  if(IMG[q[1]]){
+    pic.className="pic loading";pic.innerHTML="";
+    findImage(q[1]).then(im=>{
+      if(round[idx]!==q) return;
+      if(!im){pic.className="pic hidden";return}
+      pic.className="pic";pic.innerHTML="";
+      const img=new Image();img.alt="";img.src=im.url;
+      img.onerror=()=>{pic.className="pic hidden";picShown=false;if(!answered)$("q").textContent=q[2]};
+      const a=document.createElement("a");a.className="src";a.href=im.page;a.target="_blank";a.rel="noopener";
+      a.textContent="Bild: Wikimedia Commons · "+im.lic+(im.artist?" · "+im.artist:"");
+      pic.append(img,a);
+      if(!answered){picShown=true;$("q").textContent=q[1]<=17?"Bestimme diesen Fisch.":"Was ist hier abgebildet?"}
+    });
+  } else {pic.className="pic hidden";pic.innerHTML=""}
+  if(round[idx+1]) findImage(round[idx+1][1]); // nächstes Bild vorladen
+  const opts=shuffle(q[3].map((t,i)=>({t,ok:i===0})));
+  $("opts").innerHTML="";
+  opts.forEach((o,i)=>{
+    const b=document.createElement("button");
+    b.className="opt";b.dataset.ok=o.ok?"1":"";
+    b.innerHTML='<span class="key">'+(i+1)+'</span><span></span>';
+    b.lastChild.textContent=o.t;
+    b.onclick=()=>answer(b);
+    $("opts").appendChild(b);
+  });
+  $("fb").className="feedback";$("fb").innerHTML="";
+  $("next").classList.add("hidden");
+}
+
+const praise=["Super! 🎉","Volltreffer! 🎯","Petri Heil! 🎣","Genau! 💪","Richtig! 🐟","Mega! ⭐"];
+function answer(btn){
+  if(answered)return;answered=true;
+  const q=round[idx],ok=btn.dataset.ok==="1";
+  [...$("opts").children].forEach(b=>{b.disabled=true;if(b.dataset.ok)b.classList.add("ok")});
+  if(ok){correct++;streak++;best=Math.max(best,streak);splash(btn,streak>=5?"🔥":"🐟")}
+  else{btn.classList.add("bad");streak=0;wrongs.push({q,chosen:btn.lastChild.textContent})}
+  const fb=$("fb");
+  fb.className="feedback "+(ok?"ok":"bad");
+  fb.innerHTML=ok?praise[Math.floor(Math.random()*praise.length)]:"Leider nicht. Richtig ist: <br>"+esc(q[3][0]);
+  if(picShown&&q[1]<=17){const s=document.createElement("small");s.textContent="🔍 Merkmale: "+q[2];fb.appendChild(s)}
+  if(q[4]){const s=document.createElement("small");s.textContent="💡 "+q[4];fb.appendChild(s)}
+  $("fish").textContent="🐟 "+correct;
+  $("streak").textContent=streak>=3?"🔥 "+streak:"";
+  $("next").textContent=idx===round.length-1?"Auswertung 🏁":"Weiter ➜";
+  $("next").classList.remove("hidden");$("next").focus({preventScroll:true});
+}
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+
+function splash(el,emoji){
+  const r=el.getBoundingClientRect();
+  for(let i=0;i<6;i++){
+    const s=document.createElement("div");s.className="splash";s.textContent=emoji;
+    s.style.left=(r.left+r.width/2)+"px";s.style.top=(r.top)+"px";
+    s.style.setProperty("--dx",(Math.random()*240-120)+"px");
+    s.style.setProperty("--dy",(-60-Math.random()*140)+"px");
+    s.style.setProperty("--r",(Math.random()*120-60)+"deg");
+    document.body.appendChild(s);setTimeout(()=>s.remove(),1500);
+  }
+}
+
+function next(){idx++;if(idx<round.length)render();else finish()}
+
+function finish(){
+  $("prog").style.width="100%";
+  const pct=Math.round(correct/round.length*100);
+  const ranks=[[95,"🏆","Hecht des Sees – Prüfungsreif!"],[80,"🐟","Stolze Seeforelle"],[65,"🐠","Flinker Egli"],[45,"🐡","Sömmerling – weiter üben!"],[0,"🥚","Fischei – das wird noch!"]];
+  const r=ranks.find(x=>pct>=x[0]);
+  $("rEmoji").textContent=r[1];$("rRank").textContent=r[2];
+  $("rScore").textContent=correct+" von "+round.length+" richtig ("+pct+" %) · beste Serie "+best;
+  // Kategorien
+  const stat={};round.forEach(q=>{stat[q[0]]=stat[q[0]]||{n:0,ok:0};stat[q[0]].n++});
+  round.forEach(q=>{if(!wrongs.some(w=>w.q===q))stat[q[0]].ok++});
+  $("rCats").innerHTML=Object.keys(CATS).filter(c=>stat[c]).map(c=>{
+    const s=stat[c],p=Math.round(s.ok/s.n*100);
+    return '<tr><td>'+CATS[c].icon+' '+CATS[c].name+'<div class="bar"><div style="width:'+p+'%"></div></div></td><td>'+s.ok+'/'+s.n+'</td></tr>'}).join("");
+  // Fehler
+  $("rWrongWrap").classList.toggle("hidden",!wrongs.length);
+  $("rWrong").innerHTML=wrongs.map(w=>'<div class="wrong"><b>'+w.q[1]+'. '+esc(w.q[2])+'</b><span class="y">'+esc(w.chosen)+'</span><br><span class="r">✓ '+esc(w.q[3][0])+'</span></div>').join("");
+  // Fehlerliste speichern
+  let wl=store.get("sana_wrong_"+player,[]);
+  round.forEach(q=>{wl=wl.filter(n=>n!==q[1])});
+  wrongs.forEach(w=>wl.push(w.q[1]));
+  store.set("sana_wrong_"+player,[...new Set(wl)]);
+  // Bestenliste
+  if(mode==="normal"){
+    const hs=store.get("sana_hs",[]);
+    hs.push({name:player,pct,n:round.length,d:new Date().toLocaleDateString("de-CH")});
+    hs.sort((a,b)=>b.pct-a.pct||b.n-a.n);store.set("sana_hs",hs.slice(0,10));
+  }
+  show("result");
+  if(pct>=80)for(let i=0;i<4;i++)setTimeout(()=>splash($("rEmoji"),["🎉","🐟","⭐","🎣"][i]),i*250);
+}
+
+function home(){
+  const hs=store.get("sana_hs",[]);
+  $("hs").innerHTML=hs.length?hs.map(h=>'<li><b>'+esc(h.name)+'</b> – '+h.pct+' % <span class="muted">('+h.n+' Fragen, '+h.d+')</span></li>').join(""):'<li class="muted">Noch keine Runden gespielt.</li>';
+  const name=$("name").value.trim()||"Anonym";
+  const w=store.get("sana_wrong_"+name,[]);
+  $("retryBtn").disabled=!w.length;
+  $("retryBtn").textContent="🔁 Meine Fehler üben"+(w.length?" ("+w.length+")":"");
+  $("poolInfo").textContent=Q.length+" Fragen im Pool, jedes Thema kommt in jeder Runde vor.";
+  show("start");
+}
+
+document.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>start(+b.dataset.n));
+$("retryBtn").onclick=()=>start(0,"retry");
+$("next").onclick=next;
+$("again").onclick=()=>start(lastN,mode);
+$("home").onclick=home;
+$("name").addEventListener("input",home);
+document.addEventListener("keydown",e=>{
+  if($("quiz").classList.contains("hidden"))return;
+  if(!answered&&["1","2","3"].includes(e.key)){const b=$("opts").children[+e.key-1];if(b)answer(b)}
+  else if(answered&&e.key==="Enter"){e.preventDefault();next()}
+});
+$("name").value=store.get("sana_name","");
+home();
+</script>
+</body>
+</html>
