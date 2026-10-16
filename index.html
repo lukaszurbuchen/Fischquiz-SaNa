@@ -334,40 +334,54 @@ const SVG = {
     <circle cx="44" cy="62" r="4" fill="none" stroke="#666" stroke-width="2.5"/>
     <g transform="translate(120 86)">${HOOK(0,0)}</g><g transform="translate(220 80)">${HOOK(0,0)}</g></svg>`
 };
-const IMG_CACHE_KEY="sana_img_v2";
-try{localStorage.removeItem("sana_img_v1")}catch(e){}
+const IMG_CACHE_KEY="sana_img_v3";
+try{localStorage.removeItem("sana_img_v1");localStorage.removeItem("sana_img_v2")}catch(e){}
 const imgMem={}, imgStore=(()=>{try{return JSON.parse(localStorage.getItem(IMG_CACHE_KEY))||{}}catch(e){return {}}})();
 const okLicense = l => /public domain|cc0|^pd/i.test(l||"");
 const stripTags = s => {const d=document.createElement("div");d.innerHTML=s||"";return d.textContent.trim()};
 
-async function searchCommons(term, strict){
-  const filter = strict ? " haswbstatement:P6216=Q19652|P275=Q6938433" : "";
-  const p = new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrnamespace:"6",gsrlimit:"15",
-    gsrsearch: term+" filetype:bitmap"+filter, prop:"imageinfo", iiprop:"url|size|extmetadata", iiurlwidth:"640",
+// Strenge Suche: Artname muss im Dateinamen stehen, historische Bestimmungstafeln (Bloch u.a.) zuerst,
+// nur Public Domain / CC0, nur deutlich längliche Bilder (Fisch von der Seite statt Schwarm/Aquarium).
+const BAD_WORDS=/aquarium|school|schwarm|shoal|market|markt|fillet|filet|dish|food|skelet|skull|scale|egg|larva|fry|map|karte|stamp|briefmarke|coin|underwater|diver|plate_\d+_\d+/i;
+let banned=(()=>{try{return JSON.parse(localStorage.getItem("sana_img_banned"))||[]}catch(e){return []}})();
+async function searchCommons(query){
+  const p = new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrnamespace:"6",gsrlimit:"30",
+    gsrsearch: query+" filetype:bitmap", prop:"imageinfo", iiprop:"url|size|extmetadata", iiurlwidth:"640",
     iiextmetadatafilter:"LicenseShortName|Artist"});
   const r = await fetch("https://commons.wikimedia.org/w/api.php?"+p);
   const j = await r.json();
   const pages = Object.values((j.query||{}).pages||{}).sort((a,b)=>a.index-b.index);
+  const out=[];
   for(const pg of pages){
     const ii=(pg.imageinfo||[])[0]; if(!ii) continue;
     const lic=stripTags(ii.extmetadata?.LicenseShortName?.value);
     if(!okLicense(lic)) continue;
-    if(ii.width < 300 || ii.width < ii.height*1.15) continue; // quer, nicht zu klein
-    return {url:ii.thumburl||ii.url, page:ii.descriptionurl, lic, artist:stripTags(ii.extmetadata?.Artist?.value).slice(0,60)};
+    if(BAD_WORDS.test(pg.title)) continue;
+    if(ii.width < 300 || ii.width < ii.height*1.5) continue; // Fisch seitlich = breites Bild
+    out.push({url:ii.thumburl||ii.url, page:ii.descriptionurl, lic, artist:stripTags(ii.extmetadata?.Artist?.value).slice(0,60)});
   }
-  return null;
+  return out;
 }
 function findImage(n){
   if(!IMG[n]) return Promise.resolve(null);
-  if(imgStore[n]) return Promise.resolve(imgStore[n]);
+  if(imgStore[n] && !banned.includes(imgStore[n].url)) return Promise.resolve(imgStore[n]);
   if(imgMem[n]) return imgMem[n];
   imgMem[n]=(async()=>{
-    for(const t of IMG[n]) for(const strict of [true,false]){
-      try{const im=await searchCommons(t,strict); if(im){imgStore[n]=im;try{localStorage.setItem(IMG_CACHE_KEY,JSON.stringify(imgStore))}catch(e){};return im}}catch(e){}
+    for(const t of IMG[n]){
+      for(const q of [`intitle:"${t}" Bloch`,`intitle:"${t}" (illustration OR drawing OR plate OR Tafel)`,`intitle:"${t}"`]){
+        try{
+          const im=(await searchCommons(q)).find(c=>!banned.includes(c.url));
+          if(im){imgStore[n]=im;try{localStorage.setItem(IMG_CACHE_KEY,JSON.stringify(imgStore))}catch(e){};return im}
+        }catch(e){}
+      }
     }
     return null;
   })();
   return imgMem[n];
+}
+function banImage(n,url){
+  banned.push(url);try{localStorage.setItem("sana_img_banned",JSON.stringify(banned))}catch(e){}
+  delete imgStore[n];delete imgMem[n];try{localStorage.setItem(IMG_CACHE_KEY,JSON.stringify(imgStore))}catch(e){}
 }
 
 const $ = id => document.getElementById(id);
@@ -419,18 +433,7 @@ function render(){
     pic.firstChild.style.cssText="width:100%;max-height:220px;border-radius:12px;display:block";
     picShown=true;$("q").textContent="Welcher Kunstköder ist hier abgebildet?";
   } else if(IMG[q[1]]){
-    pic.className="pic loading";pic.innerHTML="";
-    findImage(q[1]).then(im=>{
-      if(round[idx]!==q) return;
-      if(!im){pic.className="pic hidden";return}
-      pic.className="pic";pic.innerHTML="";
-      const img=new Image();img.alt="";img.src=im.url;
-      img.onerror=()=>{pic.className="pic hidden";picShown=false;if(!answered)$("q").textContent=q[2]};
-      const a=document.createElement("a");a.className="src";a.href=im.page;a.target="_blank";a.rel="noopener";
-      a.textContent="Bild: Wikimedia Commons · "+im.lic+(im.artist?" · "+im.artist:"");
-      pic.append(img,a);
-      if(!answered){picShown=true;$("q").textContent=q[1]<=17?"Bestimme diesen Fisch.":"Was ist hier abgebildet?"}
-    });
+    loadPic(q);
   } else {pic.className="pic hidden";pic.innerHTML=""}
   if(round[idx+1]) findImage(round[idx+1][1]); // nächstes Bild vorladen
   const opts=shuffle(q[3].map((t,i)=>({t,ok:i===0})));
@@ -445,6 +448,26 @@ function render(){
   });
   $("fb").className="feedback";$("fb").innerHTML="";
   $("next").classList.add("hidden");
+}
+
+function loadPic(q){
+  const pic=$("pic");
+  pic.className="pic loading";pic.innerHTML="";
+  findImage(q[1]).then(im=>{
+    if(round[idx]!==q) return;
+    if(!im){pic.className="pic hidden";picShown=false;if(!answered)$("q").textContent=q[2];return}
+    pic.className="pic";pic.innerHTML="";
+    const img=new Image();img.alt="";img.src=im.url;
+    img.onerror=()=>{banImage(q[1],im.url);loadPic(q)};
+    const a=document.createElement("a");a.className="src";a.href=im.page;a.target="_blank";a.rel="noopener";
+    a.textContent="Bild: Wikimedia Commons · "+im.lic+(im.artist?" · "+im.artist:"");
+    const bad=document.createElement("button");bad.className="src";bad.type="button";
+    bad.style.cssText="background:none;margin:4px auto 0;text-decoration:underline;cursor:pointer";
+    bad.textContent="👎 Bild passt nicht – anderes zeigen";
+    bad.onclick=()=>{banImage(q[1],im.url);loadPic(q)};
+    pic.append(img,a,bad);
+    if(!answered){picShown=true;$("q").textContent=q[1]<=17?"Bestimme diesen Fisch.":"Was ist hier abgebildet?"}
+  });
 }
 
 const praise=["Super! 🎉","Volltreffer! 🎯","Petri Heil! 🎣","Genau! 💪","Richtig! 🐟","Mega! ⭐"];
